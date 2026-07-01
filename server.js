@@ -66,6 +66,8 @@ app.post('/api/examples', (req, res) => {
     return res.status(400).json({ error: 'Invalid netTotal or k.' });
   }
 
+  if (k > 4) return res.json({ examples: [] });
+
   const { groups, suffixDps, counts } = getOrBuildCache(netTotal);
   const totalCount = BigInt(counts[k] || '0');
   const examples = getExamples(k, netTotal, scoreWords, EXAMPLES, groups, suffixDps, totalCount);
