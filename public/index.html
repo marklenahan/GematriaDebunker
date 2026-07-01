@@ -62,9 +62,27 @@
 
   .search-row {
     display: flex;
-    justify-content: center;
+    justify-content: flex-end;
     margin: 14px 0 20px;
   }
+
+  footer {
+    margin-top: 40px;
+    padding-top: 12px;
+    border-top: 1px solid #ccc;
+    font-size: 12px;
+    color: #666;
+  }
+
+  footer .attribution { margin-bottom: 6px; }
+
+  footer a {
+    color: #c0306a;
+    text-decoration: none;
+    margin-right: 16px;
+  }
+
+  footer a:hover { text-decoration: underline; }
 
   button.search-btn {
     background: #c0306a;
@@ -224,6 +242,15 @@
   <div id="examplesSection"></div>
 
 </div>
+
+<footer>
+  <div class="attribution">By Claude Code and Mark Lenahan, July 2026</div>
+  <div>
+    <a href="https://marklenahan.com/" target="_blank">Website</a>
+    <a href="https://www.linkedin.com/in/marklen/" target="_blank">LinkedIn</a>
+    <a href="https://github.com/marklenahan/GematriaDebunker" target="_blank">GitHub</a>
+  </div>
+</footer>
 
 <script>
   const plusInput = document.getElementById('plusInput');
