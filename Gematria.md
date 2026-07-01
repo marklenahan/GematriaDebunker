@@ -2,6 +2,9 @@
 
 A set of JavaScript tools for scoring words using alphabetic letter values (A=1, B=2, … Z=26), counting how many lexicon word combinations share a given total score, and generating random examples of those combinations.
 
+Live at: https://gematria-debunker.onrender.com
+GitHub: https://github.com/marklenahan/GematriaDebunker
+
 ---
 
 ## Scoring rules
@@ -136,13 +139,17 @@ Counting combinations directly would be impossibly slow — for a score of 124, 
 
 Counts are stored as JavaScript `BigInt` values since they easily exceed JavaScript's safe integer range (the 6-word count for a typical input runs into the quadrillions).
 
-**Random example generation** works by:
-1. Enumerating all *score partitions* that sum to the target (e.g. for 2-word combinations summing to 124: pairs like 50+74, 62+62, etc.)
-2. Weighting each partition by how many word combinations it represents
-3. Sampling a partition with probability proportional to its weight
-4. Picking random words from each score bucket within that partition
+**Random example generation** uses a suffix-DP random walk:
+
+1. Score groups are sorted and suffix DPs are precomputed — `suffixDps[i]` is the DP table built from groups `i..n`, capturing how many valid completions exist from that point onward
+2. To sample one combination, the algorithm walks forward through score groups; at each group it chooses how many words to take (0 to min(group size, remaining k)) with probability proportional to `C(group_size, j) × suffixDps[i+1][remaining_k - j][remaining_score - j×score]`
+3. Words are then picked randomly from the chosen score buckets
+
+This approach uses O(n × k × T) memory regardless of combination count, avoiding the earlier approach of enumerating all score partitions (which ran out of memory for k=5 and k=6 on low-memory servers).
 
 If the total count is small enough to enumerate exhaustively (≤ 8 for the CLI, ≤ 15 for the web UI), all combinations are listed rather than sampling.
+
+Examples are only shown for k=1 to k=4. The 5- and 6-word counts are still computed and displayed, but examples are not generated — they tended to consist mostly of 2–3 letter abbreviations and were not useful.
 
 ---
 
@@ -150,13 +157,26 @@ If the total count is small enough to enumerate exhaustively (≤ 8 for the CLI,
 
 The web UI provides the same functionality as `wordfind.js` in a browser, with live scoring as you type and collapsible example sections.
 
-### Starting the server
+### Starting the server locally
 
 ```
 node server.js
 ```
 
 Then open `http://localhost:3000` in a browser. Stop with `Ctrl+C`.
+
+### Deployment
+
+The app is deployed on [Render](https://render.com) connected to the GitHub repository. Every push to the `main` branch triggers an automatic redeploy.
+
+Render configuration:
+- **Build command:** `npm install`
+- **Start command:** `node server.js`
+- The server reads its port from `process.env.PORT` (set by Render), falling back to 3000 for local use
+
+### Caching
+
+The server caches DP results and suffix DPs per net total score, so repeated searches for the same total (and multiple "More…" clicks) don't recompute the DP. The cache lives in memory for the lifetime of the server process.
 
 ### API endpoints
 
@@ -201,7 +221,7 @@ Runs the full DP and returns combination counts for all word lengths 1–6. Call
 Counts are returned as strings to preserve BigInt precision.
 
 #### `POST /api/examples`
-Returns 15 random example combinations for a specific word count. Called once per word-count section when expanded, and again when the user clicks More….
+Returns up to 15 example combinations for a specific word count. Called once per word-count section when expanded, and again when the user clicks More…. Returns an empty array for k > 4.
 
 **Request:**
 ```json
@@ -216,9 +236,11 @@ Returns 15 random example combinations for a specific word count. Called once pe
 
 - **Live scoring** — totals update as you type, before hitting Search
 - **Subtract words** — enter in the second field; their scores are deducted and they appear in pink before every example
-- **Collapsible sections** — one section per word count, click the header to expand/collapse
+- **Collapsible sections** — one section per word count (1–6), click the header to expand/collapse
+- **Examples for k=1–4 only** — 5- and 6-word counts are shown but no examples are generated
 - **More… button** — fetches a fresh set of random examples for that word count
 - **Mobile friendly** — layout adapts to narrow screens
+- **Footer** — attribution and links to website, LinkedIn, and GitHub
 
 ### Dependencies
 
