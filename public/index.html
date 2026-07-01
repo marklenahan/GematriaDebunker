@@ -1,0 +1,450 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mark's Simple Gematria Debunker</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 14px;
+    background: #fff;
+    color: #111;
+    padding: 24px;
+    max-width: 700px;
+  }
+
+  h1 {
+    font-size: 22px;
+    font-weight: bold;
+    margin-bottom: 18px;
+    border-bottom: 2px solid #111;
+    padding-bottom: 6px;
+  }
+
+  .form-group { margin-bottom: 10px; }
+
+  .form-group label {
+    display: block;
+    font-weight: bold;
+    margin-bottom: 4px;
+  }
+
+  .form-group label span {
+    font-weight: normal;
+    color: #666;
+    font-size: 12px;
+    margin-left: 6px;
+  }
+
+  .form-group input {
+    width: 100%;
+    padding: 6px 8px;
+    border: 2px solid #111;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    outline: none;
+  }
+
+  .form-group input:focus { border-color: #c0306a; }
+
+  .live-score {
+    font-family: monospace;
+    font-size: 12px;
+    color: #666;
+    margin-top: 3px;
+    min-height: 16px;
+  }
+
+  .live-score .net { color: #c0306a; font-weight: bold; }
+
+  .search-row {
+    display: flex;
+    justify-content: center;
+    margin: 14px 0 20px;
+  }
+
+  button.search-btn {
+    background: #c0306a;
+    color: #fff;
+    border: none;
+    padding: 8px 36px;
+    font-size: 15px;
+    font-weight: bold;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+
+  button.search-btn:hover { background: #a02050; }
+  button.search-btn:disabled { background: #ccc; cursor: default; }
+
+  #results { display: none; }
+
+  h2 {
+    font-size: 18px;
+    font-weight: bold;
+    margin: 18px 0 10px;
+    border-bottom: 1px solid #ccc;
+    padding-bottom: 4px;
+  }
+
+  .scores-section { font-family: monospace; }
+
+  .scores-label {
+    font-weight: bold;
+    margin: 8px 0 4px;
+  }
+
+  .score-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 1px 0 1px 16px;
+    max-width: 340px;
+  }
+
+  .score-row.total {
+    border-top: 1px solid #999;
+    font-weight: bold;
+    padding-left: 0;
+    margin-top: 2px;
+  }
+
+  .score-row.net-total {
+    border-top: 2px solid #111;
+    font-weight: bold;
+    padding-left: 0;
+    margin-top: 8px;
+    color: #c0306a;
+  }
+
+  .score-val { text-align: right; min-width: 60px; }
+
+  .minus-val { color: #c0306a; }
+
+  .combinations-section {
+    font-family: monospace;
+    margin-top: 6px;
+  }
+
+  .combo-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 2px 0;
+    max-width: 340px;
+  }
+
+  .combo-row .combo-count { text-align: right; }
+
+  h2.examples-heading { margin-top: 22px; }
+
+  .example-group { margin-bottom: 6px; border-top: 1px solid #ddd; }
+
+  .example-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 6px 0;
+    cursor: pointer;
+    user-select: none;
+    font-family: monospace;
+    font-weight: bold;
+  }
+
+  .example-header:hover { color: #c0306a; }
+
+  .example-header .arrow { font-size: 16px; color: #c0306a; }
+
+  .example-body { display: none; padding-bottom: 8px; }
+  .example-body.open { display: block; }
+
+  .example-list {
+    font-family: monospace;
+    font-size: 13px;
+    padding-left: 8px;
+    margin-bottom: 8px;
+  }
+
+  .example-list div { padding: 2px 0; }
+
+  .minus-prefix { color: #c0306a; }
+
+  .more-row { display: flex; justify-content: flex-end; }
+
+  button.more-btn {
+    background: #c0306a;
+    color: #fff;
+    border: none;
+    padding: 5px 20px;
+    font-size: 13px;
+    font-weight: bold;
+    cursor: pointer;
+    letter-spacing: 1px;
+  }
+
+  button.more-btn:hover { background: #a02050; }
+  button.more-btn:disabled { background: #ccc; cursor: default; }
+
+  .loading { color: #999; font-style: italic; font-family: monospace; font-size: 13px; }
+  .error-msg { color: #c00; font-family: monospace; margin-top: 8px; }
+</style>
+</head>
+<body>
+
+<h1>Mark's Simple Gematria Debunker</h1>
+
+<div class="form-group">
+  <label>Words to score and search — add:</label>
+  <input type="text" id="plusInput" placeholder="e.g. Hello World" autocomplete="off">
+  <div class="live-score" id="liveScore"></div>
+</div>
+
+<div class="form-group">
+  <label>Words to always match — subtract: <span>(optional)</span></label>
+  <input type="text" id="minusInput" placeholder="e.g. an apple" autocomplete="off">
+</div>
+
+<div class="search-row">
+  <button class="search-btn" id="searchBtn">Search</button>
+</div>
+
+<div id="errorMsg" class="error-msg"></div>
+
+<div id="results">
+
+  <h2>Results</h2>
+
+  <div class="scores-section" id="scoresSection"></div>
+
+  <h2>Number of combinations found:</h2>
+  <div class="combinations-section" id="combosSection"></div>
+
+  <h2 class="examples-heading">Examples</h2>
+  <div id="examplesSection"></div>
+
+</div>
+
+<script>
+  const plusInput = document.getElementById('plusInput');
+  const minusInput = document.getElementById('minusInput');
+  const liveScore = document.getElementById('liveScore');
+  const searchBtn = document.getElementById('searchBtn');
+  const errorMsg = document.getElementById('errorMsg');
+  const results = document.getElementById('results');
+  const scoresSection = document.getElementById('scoresSection');
+  const combosSection = document.getElementById('combosSection');
+  const examplesSection = document.getElementById('examplesSection');
+
+  let currentNetTotal = 0;
+  let currentMinusWords = [];
+
+  function parseWords(str) {
+    return str.trim().split(/\s+/).filter(w => w.length > 0);
+  }
+
+  // Live score update as user types
+  let scoreTimer = null;
+  function scheduleLiveScore() {
+    clearTimeout(scoreTimer);
+    scoreTimer = setTimeout(updateLiveScore, 150);
+  }
+
+  async function updateLiveScore() {
+    const plusWords = parseWords(plusInput.value);
+    const minusWords = parseWords(minusInput.value);
+    if (plusWords.length === 0) { liveScore.textContent = ''; return; }
+
+    try {
+      const r = await fetch('/api/score', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plusWords, minusWords })
+      });
+      const data = await r.json();
+      let html = `Add: <strong>${data.plusTotal}</strong>`;
+      if (minusWords.length > 0) {
+        html += `&nbsp;&nbsp; Subtract: <strong>${data.minusTotal}</strong>`;
+        html += `&nbsp;&nbsp; Net: <span class="net">${data.netTotal}</span>`;
+      }
+      liveScore.innerHTML = html;
+    } catch (e) {
+      liveScore.textContent = '';
+    }
+  }
+
+  plusInput.addEventListener('input', scheduleLiveScore);
+  minusInput.addEventListener('input', scheduleLiveScore);
+
+  // Search
+  searchBtn.addEventListener('click', runSearch);
+  plusInput.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+  minusInput.addEventListener('keydown', e => { if (e.key === 'Enter') runSearch(); });
+
+  async function runSearch() {
+    const plusWords = parseWords(plusInput.value);
+    const minusWords = parseWords(minusInput.value);
+    errorMsg.textContent = '';
+
+    if (plusWords.length === 0) {
+      errorMsg.textContent = 'Please enter at least one word to score.';
+      return;
+    }
+
+    searchBtn.disabled = true;
+    searchBtn.textContent = 'Searching...';
+    results.style.display = 'none';
+
+    try {
+      const r = await fetch('/api/search', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plusWords, minusWords })
+      });
+      const data = await r.json();
+
+      if (!r.ok) {
+        errorMsg.textContent = data.error || 'Search failed.';
+        return;
+      }
+
+      currentNetTotal = data.netTotal;
+      currentMinusWords = minusWords;
+
+      renderScores(data);
+      renderCombos(data.counts);
+      renderExampleSections(data.counts);
+      results.style.display = 'block';
+
+    } catch (e) {
+      errorMsg.textContent = 'Server error. Is the server running?';
+    } finally {
+      searchBtn.disabled = false;
+      searchBtn.textContent = 'Search';
+    }
+  }
+
+  function renderScores(data) {
+    let html = '';
+
+    html += '<div class="scores-label">Add words:</div>';
+    for (const { word, score } of data.plusScores) {
+      html += `<div class="score-row"><span>${word}</span><span class="score-val">${score}</span></div>`;
+    }
+    html += `<div class="score-row total"><span>Total</span><span class="score-val">${data.plusTotal}</span></div>`;
+
+    if (data.minusScores.length > 0) {
+      html += '<div class="scores-label" style="margin-top:10px">Subtract words:</div>';
+      for (const { word, score } of data.minusScores) {
+        html += `<div class="score-row"><span>${word}</span><span class="score-val minus-val">−${score}</span></div>`;
+      }
+      html += `<div class="score-row total"><span>Total</span><span class="score-val minus-val">−${data.minusTotal}</span></div>`;
+      html += `<div class="score-row net-total"><span>Net total</span><span class="score-val">${data.netTotal}</span></div>`;
+    }
+
+    scoresSection.innerHTML = html;
+  }
+
+  function renderCombos(counts) {
+    let html = '';
+    for (let k = 1; k <= 6; k++) {
+      const n = BigInt(counts[k] || '0');
+      const label = k === 1 ? '1 word' : `${k} words`;
+      const display = n === 0n ? '—' : n.toLocaleString();
+      html += `<div class="combo-row"><span>${label}</span><span class="combo-count">${display}</span></div>`;
+    }
+    combosSection.innerHTML = html;
+  }
+
+  function renderExampleSections(counts) {
+    examplesSection.innerHTML = '';
+    for (let k = 1; k <= 6; k++) {
+      const count = BigInt(counts[k] || '0');
+      if (count === 0n) continue;
+      const label = k === 1 ? '1 word' : `${k} words`;
+      const group = document.createElement('div');
+      group.className = 'example-group';
+      group.dataset.k = k;
+      group.dataset.count = counts[k];
+
+      const header = document.createElement('div');
+      header.className = 'example-header';
+      header.innerHTML = `<span class="header-label">${label} — loading…</span><span class="arrow">▼</span>`;
+
+      const body = document.createElement('div');
+      body.className = 'example-body';
+
+      const list = document.createElement('div');
+      list.className = 'example-list';
+      list.innerHTML = '<span class="loading">Loading examples…</span>';
+
+      const moreRow = document.createElement('div');
+      moreRow.className = 'more-row';
+      const moreBtn = document.createElement('button');
+      moreBtn.className = 'more-btn';
+      moreBtn.textContent = 'More…';
+      moreBtn.addEventListener('click', () => loadExamples(k, list, moreBtn, count));
+      moreRow.appendChild(moreBtn);
+
+      body.appendChild(list);
+      body.appendChild(moreRow);
+
+      header.addEventListener('click', () => toggleSection(body, header));
+
+      group.appendChild(header);
+      group.appendChild(body);
+      examplesSection.appendChild(group);
+
+      // Auto-expand and load k=1; others collapsed but pre-load
+      if (k === 1) {
+        body.classList.add('open');
+        header.querySelector('.arrow').textContent = '▲';
+      }
+      loadExamples(k, list, moreBtn, count, header);
+    }
+  }
+
+  async function loadExamples(k, list, moreBtn, totalCount, header) {
+    moreBtn.disabled = true;
+    list.innerHTML = '<span class="loading">Loading examples…</span>';
+
+    try {
+      const r = await fetch('/api/examples', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ netTotal: currentNetTotal, k })
+      });
+      const data = await r.json();
+
+      const shown = data.examples.length;
+      const total = BigInt(totalCount);
+      const label = k === 1 ? '1 word' : `${k} words`;
+      const headerLabel = total <= 15n
+        ? `${label} — all ${shown}`
+        : `${label} — showing 15 of ${total.toLocaleString()}`;
+
+      if (header) header.querySelector('.header-label').textContent = headerLabel;
+
+      const prefix = currentMinusWords.length > 0
+        ? `<span class="minus-prefix">${currentMinusWords.join(' ')}</span> `
+        : '';
+
+      list.innerHTML = data.examples
+        .map(ex => `<div>${prefix}${ex.join(' ')}</div>`)
+        .join('');
+
+    } catch (e) {
+      list.innerHTML = '<span class="loading">Failed to load examples.</span>';
+    } finally {
+      moreBtn.disabled = false;
+    }
+  }
+
+  function toggleSection(body, header) {
+    const isOpen = body.classList.toggle('open');
+    header.querySelector('.arrow').textContent = isOpen ? '▲' : '▼';
+  }
+</script>
+
+</body>
+</html>
