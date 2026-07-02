@@ -8,7 +8,7 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 const MAX_K = 6;
 const EXAMPLES = 15;
-const MAX_TOTAL = parseInt(process.env.MAX_TOTAL) || 100000;
+const MAX_TOTAL = parseInt(process.env.MAX_TOTAL) || 10000;
 
 console.log('Loading encodings and lexicon...');
 const encodings = loadEncodings(path.join(__dirname, 'encodings.json'));
@@ -44,6 +44,11 @@ function resolveEncoding(encodingId) {
   const id = parseInt(encodingId) || encodings[0].id;
   return encodings.find(e => e.id === id) || encodings[0];
 }
+
+// Expose server config to the UI
+app.get('/api/config', (req, res) => {
+  res.json({ maxTotal: MAX_TOTAL });
+});
 
 // List available encodings (id and name only)
 app.get('/api/encodings', (req, res) => {

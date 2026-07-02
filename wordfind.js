@@ -4,7 +4,7 @@ const { loadEncodings, scoreWord, loadLexiconWords, buildScoreMap, buildGroups, 
 
 const MAX_K = 6;
 const EXAMPLES = 8;
-const MAX_TOTAL = parseInt(process.env.MAX_TOTAL) || 100000;
+const MAX_TOTAL = parseInt(process.env.MAX_TOTAL) || 10000;
 
 const encodings = loadEncodings(path.join(__dirname, 'encodings.json'));
 

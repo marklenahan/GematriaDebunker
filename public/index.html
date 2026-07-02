@@ -62,8 +62,29 @@
 
   .search-row {
     display: flex;
-    justify-content: flex-end;
+    align-items: center;
+    justify-content: space-between;
     margin: 14px 0 20px;
+  }
+
+  .encoding-inline {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+  }
+
+  .encoding-inline label {
+    font-weight: bold;
+    white-space: nowrap;
+    color: #444;
+  }
+
+  .encoding-inline select {
+    font-size: 12px;
+    padding: 4px 6px;
+    border: 1px solid #aaa;
+    width: auto;
   }
 
   footer {
@@ -226,11 +247,6 @@
 <h1>Mark's Simple Gematria Debunker</h1>
 
 <div class="form-group">
-  <label>Encoding:</label>
-  <select id="encodingSelect"></select>
-</div>
-
-<div class="form-group">
   <label>Words to score and search — add:</label>
   <input type="text" id="plusInput" placeholder="e.g. Hello World" autocomplete="off">
   <div class="live-score" id="liveScore"></div>
@@ -242,6 +258,10 @@
 </div>
 
 <div class="search-row">
+  <div class="encoding-inline">
+    <label>Encoding:</label>
+    <select id="encodingSelect"></select>
+  </div>
   <button class="search-btn" id="searchBtn">Search</button>
 </div>
 
@@ -285,6 +305,16 @@
   let currentNetTotal = 0;
   let currentMinusWords = [];
   let currentEncodingId = 1;
+  let maxTotal = 10000;
+
+  // Load server config (max total limit)
+  (async () => {
+    try {
+      const r = await fetch('/api/config');
+      const cfg = await r.json();
+      maxTotal = cfg.maxTotal;
+    } catch (e) {}
+  })();
 
   // Load encodings into dropdown
   (async () => {
@@ -330,12 +360,17 @@
         body: JSON.stringify({ plusWords, minusWords, encodingId: parseInt(encodingSelect.value) })
       });
       const data = await r.json();
-      let html = `Add: <strong>${data.plusTotal}</strong>`;
+      const overLimit = data.netTotal > maxTotal;
+      let html = `Add: <strong>${data.plusTotal.toLocaleString()}</strong>`;
       if (minusWords.length > 0) {
-        html += `&nbsp;&nbsp; Subtract: <strong>${data.minusTotal}</strong>`;
-        html += `&nbsp;&nbsp; Net: <span class="net">${data.netTotal}</span>`;
+        html += `&nbsp;&nbsp; Subtract: <strong>${data.minusTotal.toLocaleString()}</strong>`;
+        html += `&nbsp;&nbsp; Net: <span class="net">${data.netTotal.toLocaleString()}</span>`;
+      }
+      if (overLimit) {
+        html += `&nbsp;&nbsp; <span style="color:#c00">(limit ${maxTotal.toLocaleString()})</span>`;
       }
       liveScore.innerHTML = html;
+      searchBtn.disabled = overLimit;
     } catch (e) {
       liveScore.textContent = '';
     }
