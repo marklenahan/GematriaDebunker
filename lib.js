@@ -1,12 +1,32 @@
 const fs = require('fs');
 
-function scoreWord(word) {
+function loadEncodings(filePath) {
+  return JSON.parse(fs.readFileSync(filePath, 'utf8'));
+}
+
+function scoreWord(word, encoding) {
   let total = 0;
   for (const ch of word) {
     const code = ch.toUpperCase().charCodeAt(0);
-    if (code >= 65 && code <= 90) total += code - 64;
+    if (code >= 65 && code <= 90) total += encoding.values[code - 65];
   }
   return total;
+}
+
+function loadLexiconWords(filePath) {
+  return fs.readFileSync(filePath, 'utf8').trim().split('\n').filter(w => w.length > 0);
+}
+
+function buildScoreMap(words, encoding) {
+  const scoreWords = new Map();
+  for (const w of words) {
+    const s = scoreWord(w, encoding);
+    if (s > 0) {
+      if (!scoreWords.has(s)) scoreWords.set(s, []);
+      scoreWords.get(s).push(w);
+    }
+  }
+  return scoreWords;
 }
 
 function comb(n, k) {
@@ -15,19 +35,6 @@ function comb(n, k) {
   let r = 1n;
   for (let i = 0; i < k; i++) r = r * BigInt(n - i) / BigInt(i + 1);
   return r;
-}
-
-function loadLexicon(filePath) {
-  const lines = fs.readFileSync(filePath, 'utf8').trim().split('\n');
-  const scoreWords = new Map();
-  for (const w of lines) {
-    const s = scoreWord(w);
-    if (s > 0) {
-      if (!scoreWords.has(s)) scoreWords.set(s, []);
-      scoreWords.get(s).push(w);
-    }
-  }
-  return scoreWords;
 }
 
 // Sorted array of [score, wordList] pairs for scores <= T
@@ -62,14 +69,12 @@ function buildDP(scoreWords, T, MAX_K) {
 
 // Suffix DPs: suffixDps[i] is the DP built from groups[i..n-1].
 // Used for memory-efficient random sampling — instead of enumerating all
-// score partitions (which can be millions for k=5/6), we do a random walk
-// through the groups, at each step choosing how many words to take based
-// on how many valid completions remain (read from the suffix DP).
+// score partitions, we do a random walk through the groups, choosing how many
+// words to take at each step based on how many valid completions remain.
 function buildSuffixDPs(groups, T, MAX_K) {
   const n = groups.length;
   const suffixDps = new Array(n + 1);
 
-  // Base: no groups left, only one state (0 words, score 0)
   suffixDps[n] = Array.from({ length: MAX_K + 1 }, () => new Map());
   suffixDps[n][0].set(0, 1n);
 
@@ -118,7 +123,6 @@ function sampleOne(groups, T, k, suffixDps) {
     const groupCount = groupWordList.length;
     const next = suffixDps[i + 1];
 
-    // Weight of picking j words from this group = C(groupCount,j) * suffixDps[i+1][remK-j][remScore-j*groupScore]
     const weights = [];
     for (let j = 0; j <= Math.min(groupCount, remK); j++) {
       const ns = remScore - j * groupScore;
@@ -131,7 +135,6 @@ function sampleOne(groups, T, k, suffixDps) {
     const totalW = weights.reduce((a, b) => a + b, 0n);
     if (totalW === 0n) continue;
 
-    // Pick j with probability proportional to weights
     let r = BigInt(Math.floor(Math.random() * Number(totalW)));
     let j = 0;
     for (; j < weights.length - 1; j++) {
@@ -149,7 +152,6 @@ function sampleOne(groups, T, k, suffixDps) {
   return words;
 }
 
-// Enumerate all word combinations for a sorted score partition (for small counts)
 function allFromPartition(partition, scoreWords) {
   const groups = [];
   let i = 0;
@@ -174,7 +176,6 @@ function allFromPartition(partition, scoreWords) {
   return results;
 }
 
-// Enumerate all score partitions of T into exactly k parts (for exhaustive small-count listing)
 function allScorePartitions(k, T, scoreWords) {
   const scores = [...scoreWords.keys()].filter(s => s <= T).sort((a, b) => a - b);
   const partitions = [];
@@ -195,14 +196,10 @@ function allScorePartitions(k, T, scoreWords) {
   return partitions;
 }
 
-// Get up to `count` examples for k-combinations summing to T.
-// Uses suffix-DP random walk for sampling (no large partition arrays).
-// Falls back to exhaustive listing when total combinations <= count.
 function getExamples(k, T, scoreWords, count, groups, suffixDps, totalCount) {
   if (totalCount === 0n) return [];
 
   if (totalCount <= BigInt(count)) {
-    // Enumerate all combinations exactly
     const all = [];
     for (const partition of allScorePartitions(k, T, scoreWords)) {
       all.push(...allFromPartition(partition, scoreWords));
@@ -213,4 +210,13 @@ function getExamples(k, T, scoreWords, count, groups, suffixDps, totalCount) {
   return Array.from({ length: count }, () => sampleOne(groups, T, k, suffixDps));
 }
 
-module.exports = { scoreWord, loadLexicon, buildGroups, buildDP, buildSuffixDPs, getExamples };
+module.exports = {
+  loadEncodings,
+  scoreWord,
+  loadLexiconWords,
+  buildScoreMap,
+  buildGroups,
+  buildDP,
+  buildSuffixDPs,
+  getExamples,
+};

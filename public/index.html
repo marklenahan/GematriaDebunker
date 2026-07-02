@@ -206,11 +206,29 @@
 
   .loading { color: #999; font-style: italic; font-family: monospace; font-size: 13px; }
   .error-msg { color: #c00; font-family: monospace; margin-top: 8px; }
+
+  select {
+    width: 100%;
+    padding: 6px 8px;
+    border: 2px solid #111;
+    font-size: 14px;
+    font-family: Arial, sans-serif;
+    background: #fff;
+    outline: none;
+    cursor: pointer;
+  }
+
+  select:focus { border-color: #c0306a; }
 </style>
 </head>
 <body>
 
 <h1>Mark's Simple Gematria Debunker</h1>
+
+<div class="form-group">
+  <label>Encoding:</label>
+  <select id="encodingSelect"></select>
+</div>
 
 <div class="form-group">
   <label>Words to score and search — add:</label>
@@ -255,6 +273,7 @@
 <script>
   const plusInput = document.getElementById('plusInput');
   const minusInput = document.getElementById('minusInput');
+  const encodingSelect = document.getElementById('encodingSelect');
   const liveScore = document.getElementById('liveScore');
   const searchBtn = document.getElementById('searchBtn');
   const errorMsg = document.getElementById('errorMsg');
@@ -265,6 +284,28 @@
 
   let currentNetTotal = 0;
   let currentMinusWords = [];
+  let currentEncodingId = 1;
+
+  // Load encodings into dropdown
+  (async () => {
+    try {
+      const r = await fetch('/api/encodings');
+      const encs = await r.json();
+      for (const enc of encs) {
+        const opt = document.createElement('option');
+        opt.value = enc.id;
+        opt.textContent = enc.name;
+        encodingSelect.appendChild(opt);
+      }
+    } catch (e) {
+      const opt = document.createElement('option');
+      opt.textContent = 'English (simple)';
+      opt.value = 1;
+      encodingSelect.appendChild(opt);
+    }
+  })();
+
+  encodingSelect.addEventListener('change', scheduleLiveScore);
 
   function parseWords(str) {
     return str.trim().split(/\s+/).filter(w => w.length > 0);
@@ -286,7 +327,7 @@
       const r = await fetch('/api/score', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plusWords, minusWords })
+        body: JSON.stringify({ plusWords, minusWords, encodingId: parseInt(encodingSelect.value) })
       });
       const data = await r.json();
       let html = `Add: <strong>${data.plusTotal}</strong>`;
@@ -326,7 +367,7 @@
       const r = await fetch('/api/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plusWords, minusWords })
+        body: JSON.stringify({ plusWords, minusWords, encodingId: parseInt(encodingSelect.value) })
       });
       const data = await r.json();
 
@@ -337,6 +378,7 @@
 
       currentNetTotal = data.netTotal;
       currentMinusWords = minusWords;
+      currentEncodingId = parseInt(encodingSelect.value);
 
       renderScores(data);
       renderCombos(data.counts);
@@ -447,7 +489,7 @@
       const r = await fetch('/api/examples', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ netTotal: currentNetTotal, k })
+        body: JSON.stringify({ netTotal: currentNetTotal, k, encodingId: currentEncodingId })
       });
       const data = await r.json();
 
