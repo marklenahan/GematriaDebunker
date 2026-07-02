@@ -1,6 +1,6 @@
 # Mark's Simple Gematria Debunker
 
-A set of JavaScript tools for scoring words using alphabetic letter values (A=1, B=2, … Z=26), counting how many lexicon word combinations share a given total score, and generating random examples of those combinations.
+A set of JavaScript tools for scoring words using alphabetic letter values, counting how many lexicon word combinations share a given total score, and generating random examples of those combinations. Multiple encoding schemes are supported.
 
 Live at: https://gematria-debunker.onrender.com
 GitHub: https://github.com/marklenahan/GematriaDebunker
@@ -9,11 +9,28 @@ GitHub: https://github.com/marklenahan/GematriaDebunker
 
 ## Scoring rules
 
-- Each letter A–Z scores its position in the alphabet: A=1, B=2, C=3 … Z=26
+- Each letter A–Z is assigned a numeric value based on the active encoding (see Encodings below)
 - Upper and lower case score the same
 - Non-alphabetic characters (spaces, punctuation, numbers) are ignored and score zero
-- A word's score is the sum of its letter scores
+- A word's score is the sum of its letter values
 - A phrase's score is the sum of its word scores
+
+---
+
+## Encodings
+
+Four encoding schemes are supported, selectable in the web UI or via the `/N` argument on the CLI:
+
+| ID | Name | Description |
+|---|---|---|
+| 1 | English (simple) | A=1, B=2, C=3 … Z=26 |
+| 2 | Transliterated Hebrew | Based on Hebrew letter values mapped to Latin letters; J=600, W=900, X=300, Y=400, Z=500 |
+| 3 | Latin (Christoph Rudolff) | 16th-century Latin cipher; J=0, V=0, others 1–24 |
+| 4 | English Test | Test encoding: A=0, E=100, otherwise normal values |
+
+The English (simple) encoding is the default.
+
+Each encoding is defined in `encodings.json` as a 26-element values array (index 0 = A, index 25 = Z).
 
 ---
 
@@ -23,9 +40,10 @@ GitHub: https://github.com/marklenahan/GematriaDebunker
 |---|---|
 | `wordscore.js` | CLI: scores words passed as arguments |
 | `wordfind.js` | CLI: scores words, supports subtract words, searches lexicon for matching combinations |
-| `lib.js` | Shared library used by the web server |
+| `lib.js` | Shared library used by both CLI tools and the web server |
 | `server.js` | Express web server |
 | `public/index.html` | Browser UI |
+| `encodings.json` | Encoding definitions (id, name, values array) |
 | `20k.txt` | Lexicon: 20,000 common English words |
 
 Earlier intermediate versions (`wordmatch.js`, `wordmatch2.js`) were stepping stones and are superseded by `wordfind.js`.
@@ -51,15 +69,22 @@ The earlier `wordmatch.js` used the macOS system lexicon at `/usr/share/dict/wor
 Scores each word passed as an argument, then prints a total.
 
 ```
-node wordscore.js <word> [word ...]
+node wordscore.js <word> [word ...] [/encodingId]
 ```
 
 **Example:**
 ```
 $ node wordscore.js Hello World
+Encoding: English (simple)
 Hello: 52
 World: 72
 total: 124
+
+$ node wordscore.js Hello World /2
+Encoding: Transliterated Hebrew
+Hello: 52
+World: 1072
+total: 1124
 ```
 
 ---
@@ -69,13 +94,14 @@ total: 124
 Scores words and searches the lexicon for single words or combinations of 2–6 words with the same total score. Words prefixed with `-` are **subtract words** — their scores are deducted from the total before searching.
 
 ```
-node wordfind.js <word> [...] [-word ...]
+node wordfind.js <word> [...] [-word ...] [/encodingId]
 ```
 
 **Examples:**
 
 ```
 $ node wordfind.js Hello World
+Encoding: English (simple)
 Hello: 52
 World: 72
 total: 124
@@ -126,6 +152,9 @@ Lexicon combinations with score 59:
 - If the total number of combinations for a word count is 8 or fewer, all combinations are listed without repeating
 - Combinations are **unordered** (so "hello world" and "world hello" count as one) and use **distinct words** (no word repeated)
 
+**Limits:**
+- `MAX_TOTAL` environment variable caps the maximum net total the CLI will process (default: 10,000). Set higher if needed: `MAX_TOTAL=50000 node wordfind.js ...`
+
 ---
 
 ## How the combination counting works
@@ -141,11 +170,11 @@ Counts are stored as JavaScript `BigInt` values since they easily exceed JavaScr
 
 **Random example generation** uses a suffix-DP random walk:
 
-1. Score groups are sorted and suffix DPs are precomputed — `suffixDps[i]` is the DP table built from groups `i..n`, capturing how many valid completions exist from that point onward
+1. Score groups are sorted and suffix DPs are built — `suffixDps[i]` is the DP table built from groups `i..n`, capturing how many valid completions exist from that point onward
 2. To sample one combination, the algorithm walks forward through score groups; at each group it chooses how many words to take (0 to min(group size, remaining k)) with probability proportional to `C(group_size, j) × suffixDps[i+1][remaining_k - j][remaining_score - j×score]`
 3. Words are then picked randomly from the chosen score buckets
 
-This approach uses O(n × k × T) memory regardless of combination count, avoiding the earlier approach of enumerating all score partitions (which ran out of memory for k=5 and k=6 on low-memory servers).
+This approach samples uniformly at random without ever enumerating all combinations, and replaces an earlier approach that stored all score partitions in memory (which caused out-of-memory crashes for k=5 and k=6 on Render's 512MB free tier).
 
 If the total count is small enough to enumerate exhaustively (≤ 8 for the CLI, ≤ 15 for the web UI), all combinations are listed rather than sampling.
 
@@ -170,24 +199,62 @@ Then open `http://localhost:3000` in a browser. Stop with `Ctrl+C`.
 The app is deployed on [Render](https://render.com) connected to the GitHub repository. Every push to the `main` branch triggers an automatic redeploy.
 
 Render configuration:
+- **Plan:** Free tier (512MB RAM)
 - **Build command:** `npm install`
 - **Start command:** `node server.js`
 - The server reads its port from `process.env.PORT` (set by Render), falling back to 3000 for local use
+- Free tier spins down after 15 minutes of inactivity; the first request after spin-down takes a few seconds to start
 
-### Caching
+### Memory management
 
-The server caches DP results and suffix DPs per net total score, so repeated searches for the same total (and multiple "More…" clicks) don't recompute the DP. The cache lives in memory for the lifetime of the server process.
+The server's memory footprint is carefully bounded to stay within Render's 512MB free tier:
+
+**At startup:** one score map per encoding is prebuilt and held in memory (~10MB total for 4 encodings × 20k words).
+
+**Cache:** combination counts (6 BigInt strings) are cached per `encodingId:netTotal` key. The counts are tiny and accumulate without eviction — this is fine because they're just strings.
+
+**Suffix DPs are NOT cached.** The suffix DP tables required for example generation are O(numGroups × MAX_K × netTotal) in size. For a Hebrew encoding search at T=1157 this is roughly 4 million BigInt entries (~400MB) — caching even a handful would exhaust available RAM. Instead, suffix DPs are rebuilt fresh for each `/api/examples` call and garbage collected immediately afterwards.
+
+**Example generation limit:** if `netTotal > EXAMPLES_TOTAL_LIMIT` (default: 1000, overridable via the `EXAMPLES_TOTAL_LIMIT` environment variable), example generation is skipped entirely and the UI shows "examples not available (score too large)". Combination counts still work for any total up to `MAX_TOTAL`. This prevents a single large-score search from using hundreds of MB during the suffix DP build.
+
+### Environment variables
+
+| Variable | Default | Purpose |
+|---|---|---|
+| `PORT` | 3000 | HTTP port (set automatically by Render) |
+| `MAX_TOTAL` | 10000 | Maximum net total the server will process |
+| `EXAMPLES_TOTAL_LIMIT` | 1000 | Maximum net total for which examples are generated |
 
 ### API endpoints
 
-The server exposes three JSON endpoints:
+All endpoints accept and return JSON.
+
+#### `GET /api/config`
+Returns server configuration so the UI can enforce the same limits.
+
+**Response:**
+```json
+{ "maxTotal": 10000 }
+```
+
+#### `GET /api/encodings`
+Returns the list of available encodings.
+
+**Response:**
+```json
+[
+  { "id": 1, "name": "English (simple)" },
+  { "id": 2, "name": "Transliterated Hebrew" },
+  ...
+]
+```
 
 #### `POST /api/score`
 Scores words without running the lexicon search. Called on every keystroke for live feedback.
 
 **Request:**
 ```json
-{ "plusWords": ["Hello", "World"], "minusWords": ["an"] }
+{ "plusWords": ["Hello", "World"], "minusWords": ["an"], "encodingId": 1 }
 ```
 **Response:**
 ```json
@@ -201,11 +268,11 @@ Scores words without running the lexicon search. Called on every keystroke for l
 ```
 
 #### `POST /api/search`
-Runs the full DP and returns combination counts for all word lengths 1–6. Called when the user clicks Search.
+Runs the full DP and returns combination counts for all word lengths 1–6. Returns HTTP 400 if netTotal exceeds `MAX_TOTAL`.
 
 **Request:**
 ```json
-{ "plusWords": ["Hello", "World"], "minusWords": ["an"] }
+{ "plusWords": ["Hello", "World"], "minusWords": ["an"], "encodingId": 1 }
 ```
 **Response:**
 ```json
@@ -215,17 +282,18 @@ Runs the full DP and returns combination counts for all word lengths 1–6. Call
   "plusTotal": 124,
   "minusTotal": 15,
   "netTotal": 109,
-  "counts": { "1": "87", "2": "1189432", "3": "...", "4": "...", "5": "...", "6": "..." }
+  "counts": { "1": "87", "2": "1189432", "3": "...", "4": "...", "5": "...", "6": "..." },
+  "encodingName": "English (simple)"
 }
 ```
 Counts are returned as strings to preserve BigInt precision.
 
 #### `POST /api/examples`
-Returns up to 15 example combinations for a specific word count. Called once per word-count section when expanded, and again when the user clicks More…. Returns an empty array for k > 4.
+Returns up to 15 example combinations for a specific word count. Called once per section when expanded, and again on More… clicks. Returns an empty array for k > 4. Returns `{ "examples": [], "scoreTooLarge": true }` if netTotal exceeds `EXAMPLES_TOTAL_LIMIT`.
 
 **Request:**
 ```json
-{ "netTotal": 109, "k": 2 }
+{ "netTotal": 109, "k": 2, "encodingId": 1 }
 ```
 **Response:**
 ```json
@@ -234,10 +302,14 @@ Returns up to 15 example combinations for a specific word count. Called once per
 
 ### UI features
 
+- **Encoding selector** — dropdown in the search row; changing encoding re-scores live
 - **Live scoring** — totals update as you type, before hitting Search
+- **Search disabled** when netTotal exceeds the server's `MAX_TOTAL` limit (shown in red)
 - **Subtract words** — enter in the second field; their scores are deducted and they appear in pink before every example
 - **Collapsible sections** — one section per word count (1–6), click the header to expand/collapse
+- **k=1 auto-expanded** on each search
 - **Examples for k=1–4 only** — 5- and 6-word counts are shown but no examples are generated
+- **"examples not available (score too large)"** shown for k=1–4 when netTotal > EXAMPLES_TOTAL_LIMIT
 - **More… button** — fetches a fresh set of random examples for that word count
 - **Mobile friendly** — layout adapts to narrow screens
 - **Footer** — attribution and links to website, LinkedIn, and GitHub
