@@ -9,6 +9,8 @@ app.use(express.static(path.join(__dirname, 'public')));
 const MAX_K = 6;
 const EXAMPLES = 15;
 const MAX_TOTAL = parseInt(process.env.MAX_TOTAL) || 10000;
+// Above this total, skip example generation to avoid OOM (suffix DPs are O(n × k × T))
+const EXAMPLES_TOTAL_LIMIT = parseInt(process.env.EXAMPLES_TOTAL_LIMIT) || 1000;
 
 console.log('Loading encodings and lexicon...');
 const encodings = loadEncodings(path.join(__dirname, 'encodings.json'));
@@ -21,21 +23,20 @@ for (const enc of encodings) {
   console.log(`  Encoding ${enc.id} (${enc.name}): ${scoreWordsMaps.get(enc.id).size} distinct scores`);
 }
 
-// Cache DP + suffix DPs per encodingId:netTotal
+// Cache only combination counts per encodingId:netTotal — suffix DPs are NOT cached
+// because they are O(n × k × T) and would exhaust RAM after a handful of searches.
 const searchCache = new Map();
 
 function getOrBuildCache(encodingId, netTotal) {
   const key = `${encodingId}:${netTotal}`;
   if (!searchCache.has(key)) {
     const scoreWords = scoreWordsMaps.get(encodingId);
-    const groups = buildGroups(scoreWords, netTotal);
     const dp = buildDP(scoreWords, netTotal, MAX_K);
-    const suffixDps = buildSuffixDPs(groups, netTotal, MAX_K);
     const counts = {};
     for (let k = 1; k <= MAX_K; k++) {
       counts[k] = (dp[k].get(netTotal) || 0n).toString();
     }
-    searchCache.set(key, { groups, suffixDps, counts, scoreWords });
+    searchCache.set(key, { counts });
   }
   return searchCache.get(key);
 }
@@ -95,9 +96,13 @@ app.post('/api/examples', (req, res) => {
     return res.status(400).json({ error: 'Invalid netTotal or k.' });
   }
   if (k > 4) return res.json({ examples: [] });
+  if (netTotal > EXAMPLES_TOTAL_LIMIT) return res.json({ examples: [], scoreTooLarge: true });
 
   const encoding = resolveEncoding(encodingId);
-  const { groups, suffixDps, counts, scoreWords } = getOrBuildCache(encoding.id, netTotal);
+  const { counts } = getOrBuildCache(encoding.id, netTotal);
+  const scoreWords = scoreWordsMaps.get(encoding.id);
+  const groups = buildGroups(scoreWords, netTotal);
+  const suffixDps = buildSuffixDPs(groups, netTotal, MAX_K);
   const totalCount = BigInt(counts[k] || '0');
   const examples = getExamples(k, netTotal, scoreWords, EXAMPLES, groups, suffixDps, totalCount);
   res.json({ examples });

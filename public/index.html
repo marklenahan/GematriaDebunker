@@ -531,19 +531,24 @@
       const shown = data.examples.length;
       const total = BigInt(totalCount);
       const label = k === 1 ? '1 word' : `${k} words`;
-      const headerLabel = total <= 15n
-        ? `${label} — all ${shown}`
-        : `${label} — showing 15 of ${total.toLocaleString()}`;
 
-      if (header) header.querySelector('.header-label').textContent = headerLabel;
+      if (data.scoreTooLarge) {
+        if (header) header.querySelector('.header-label').textContent = `${label} — examples not available (score too large)`;
+        list.innerHTML = '';
+      } else {
+        const headerLabel = total <= 15n
+          ? `${label} — all ${shown}`
+          : `${label} — showing 15 of ${total.toLocaleString()}`;
+        if (header) header.querySelector('.header-label').textContent = headerLabel;
 
-      const prefix = currentMinusWords.length > 0
-        ? `<span class="minus-prefix">${currentMinusWords.join(' ')}</span> `
-        : '';
+        const prefix = currentMinusWords.length > 0
+          ? `<span class="minus-prefix">${currentMinusWords.join(' ')}</span> `
+          : '';
 
-      list.innerHTML = data.examples
-        .map(ex => `<div>${prefix}${ex.join(' ')}</div>`)
-        .join('');
+        list.innerHTML = data.examples
+          .map(ex => `<div>${prefix}${ex.join(' ')}</div>`)
+          .join('');
+      }
 
     } catch (e) {
       list.innerHTML = '<span class="loading">Failed to load examples.</span>';
