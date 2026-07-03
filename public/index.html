@@ -462,7 +462,7 @@
 
   function renderCombos(counts) {
     let html = '';
-    for (let k = 1; k <= 6; k++) {
+    for (let k = 1; k <= 8; k++) {
       const n = BigInt(counts[k] || '0');
       const label = k === 1 ? '1 word' : `${k} words`;
       const display = n === 0n ? '—' : n.toLocaleString();
@@ -473,7 +473,7 @@
 
   function renderExampleSections(counts) {
     examplesSection.innerHTML = '';
-    for (let k = 1; k <= 6; k++) {
+    for (let k = 1; k <= 8; k++) {
       const count = BigInt(counts[k] || '0');
       if (count === 0n) continue;
       const label = k === 1 ? '1 word' : `${k} words`;
