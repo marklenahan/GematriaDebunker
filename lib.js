@@ -13,8 +13,29 @@ function scoreWord(word, encoding) {
   return total;
 }
 
-function loadLexiconWords(filePath) {
-  return fs.readFileSync(filePath, 'utf8').trim().split('\n').filter(w => w.length > 0);
+function loadLexiconWords(mainFilePath, shortWordsPath) {
+  const vowels = new Set('aeiou');
+
+  const consonants = new Set('bcdfghjklmnpqrstvwxyz');
+  // Main lexicon: 4+ letter words only, must have at least one vowel AND one consonant.
+  // Also limit to the top 7500 entries — the list is frequency-sorted, so the tail
+  // contains obscure/foreign words and acronyms (ieee, oecd, dicke, etc.).
+  const main = fs.readFileSync(mainFilePath, 'utf8').trim().split('\n')
+    .slice(0, 7500)
+    .map(w => w.trim().toLowerCase())
+    .filter(w => w.length >= 4
+      && [...w].some(c => vowels.has(c))
+      && [...w].some(c => consonants.has(c)));
+
+  // Short words: curated 1–3 letter words and initialisms; skip comment lines
+  const short = shortWordsPath
+    ? fs.readFileSync(shortWordsPath, 'utf8').trim().split('\n')
+        .map(w => w.trim().toLowerCase())
+        .filter(w => w.length > 0 && !w.startsWith('#'))
+    : [];
+
+  // Merge, deduplicate, preserve order (short words first)
+  return [...new Set([...short, ...main])];
 }
 
 function buildScoreMap(words, encoding) {

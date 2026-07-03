@@ -73,7 +73,10 @@ if (T > MAX_TOTAL) {
 if (minusWords.length > 0) console.log(`\nnet total: ${T}`);
 console.log();
 
-const lexiconWords = loadLexiconWords(path.join(__dirname, '20k.txt'));
+const lexiconWords = loadLexiconWords(
+  path.join(__dirname, 'google-10000-english.txt'),
+  path.join(__dirname, 'shortwords.txt')
+);
 const scoreWords = buildScoreMap(lexiconWords, encoding);
 const groups = buildGroups(scoreWords, T);
 const dp = buildDP(scoreWords, T, MAX_K);

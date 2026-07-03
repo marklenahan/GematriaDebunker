@@ -14,7 +14,10 @@ const EXAMPLES_TOTAL_LIMIT = parseInt(process.env.EXAMPLES_TOTAL_LIMIT) || 1000;
 
 console.log('Loading encodings and lexicon...');
 const encodings = loadEncodings(path.join(__dirname, 'encodings.json'));
-const lexiconWords = loadLexiconWords(path.join(__dirname, '20k.txt'));
+const lexiconWords = loadLexiconWords(
+  path.join(__dirname, 'google-10000-english.txt'),
+  path.join(__dirname, 'shortwords.txt')
+);
 
 // Pre-build a score map for each encoding at startup
 const scoreWordsMaps = new Map();
