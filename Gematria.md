@@ -11,9 +11,10 @@ GitHub: https://github.com/marklenahan/GematriaDebunker
 
 - Each letter A–Z is assigned a numeric value based on the active encoding (see Encodings below)
 - Upper and lower case score the same
-- Non-alphabetic characters (spaces, punctuation, numbers) are ignored and score zero
+- Non-alphabetic characters (spaces, punctuation) are ignored and score zero
 - A word's score is the sum of its letter values
 - A phrase's score is the sum of its word scores
+- A token consisting entirely of digits (e.g. `52`) is treated as a literal number and added directly to the total — it is not scored letter-by-letter
 
 ---
 
@@ -149,11 +150,12 @@ Lexicon combinations with score 59:
 ```
 
 **Subtract word rules:**
-- Subtract words are prefixed with `-` on the command line, e.g. `-test`
+- Subtract words are prefixed with `-` on the command line, e.g. `-test` or `-52`
 - Their scores are shown as negative
 - The search uses the net total (plus total minus subtract total)
 - If the subtract total is greater than or equal to the plus total, the program exits with an error
 - Subtract words are prepended to every example line so you can read the full phrase
+- A subtract token that is all digits (e.g. `-52`) subtracts that number directly
 
 **Output behaviour:**
 - For each word count (1–8 words), shows the number of matching combinations
