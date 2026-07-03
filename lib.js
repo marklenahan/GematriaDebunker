@@ -5,6 +5,7 @@ function loadEncodings(filePath) {
 }
 
 function scoreWord(word, encoding) {
+  if (/^\d+$/.test(word)) return parseInt(word, 10);
   let total = 0;
   for (const ch of word) {
     const code = ch.toUpperCase().charCodeAt(0);
