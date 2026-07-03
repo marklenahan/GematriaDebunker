@@ -64,7 +64,13 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 10px;
     margin: 14px 0 20px;
+  }
+
+  .search-row button.search-btn {
+    margin-left: auto;
   }
 
   .encoding-inline {
@@ -206,6 +212,11 @@
   }
 
   .example-list div { padding: 2px 0; }
+
+  .example-list.two-col {
+    columns: 2;
+    column-gap: 16px;
+  }
 
   .minus-prefix { color: #c0306a; }
 
@@ -487,7 +498,7 @@
       body.className = 'example-body';
 
       const list = document.createElement('div');
-      list.className = 'example-list';
+      list.className = 'example-list' + (k <= 2 ? ' two-col' : '');
       list.innerHTML = '<span class="loading">Loading examples…</span>';
 
       const moreRow = document.createElement('div');
