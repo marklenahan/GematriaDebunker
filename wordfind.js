@@ -2,8 +2,8 @@
 const path = require('path');
 const { loadEncodings, scoreWord, loadLexiconWords, buildScoreMap, buildGroups, buildDP, buildSuffixDPs, getExamples } = require('./lib');
 
-const MAX_K = 6;
-const EXAMPLES = 8;
+const MAX_K = 8;
+const EXAMPLES_BY_K = { 1: 30, 2: 30, 3: 8, 4: 8 };
 const MAX_TOTAL = parseInt(process.env.MAX_TOTAL) || 10000;
 
 const encodings = loadEncodings(path.join(__dirname, 'encodings.json'));
@@ -90,7 +90,7 @@ for (let k = 1; k <= MAX_K; k++) {
   const count = dp[k].get(T) || 0n;
   console.log(`  ${k} word${k > 1 ? 's' : ''}: ${count.toLocaleString()}`);
   if (count > 0n) {
-    const examples = getExamples(k, T, scoreWords, EXAMPLES, groups, suffixDps, count);
+    const examples = getExamples(k, T, scoreWords, EXAMPLES_BY_K[k] || 0, groups, suffixDps, count);
     for (const ex of examples) {
       console.log(`    ${prefix}${ex.join(' ')}`);
     }

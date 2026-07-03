@@ -6,8 +6,8 @@ const app = express();
 app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
-const MAX_K = 6;
-const EXAMPLES = 15;
+const MAX_K = 8;
+const EXAMPLES_BY_K = { 1: 30, 2: 30, 3: 15, 4: 15 };
 const MAX_TOTAL = parseInt(process.env.MAX_TOTAL) || 10000;
 // Above this total, skip example generation to avoid OOM (suffix DPs are O(n × k × T))
 const EXAMPLES_TOTAL_LIMIT = parseInt(process.env.EXAMPLES_TOTAL_LIMIT) || 1000;
@@ -107,8 +107,9 @@ app.post('/api/examples', (req, res) => {
   const groups = buildGroups(scoreWords, netTotal);
   const suffixDps = buildSuffixDPs(groups, netTotal, MAX_K);
   const totalCount = BigInt(counts[k] || '0');
-  const examples = getExamples(k, netTotal, scoreWords, EXAMPLES, groups, suffixDps, totalCount);
-  res.json({ examples });
+  const exampleCount = EXAMPLES_BY_K[k] || 15;
+  const examples = getExamples(k, netTotal, scoreWords, exampleCount, groups, suffixDps, totalCount);
+  res.json({ examples, exampleCount });
 });
 
 const PORT = process.env.PORT || 3000;

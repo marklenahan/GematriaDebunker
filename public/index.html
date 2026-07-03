@@ -536,9 +536,10 @@
         if (header) header.querySelector('.header-label').textContent = `${label} — examples not available (score too large)`;
         list.innerHTML = '';
       } else {
-        const headerLabel = total <= 15n
+        const cap = BigInt(data.exampleCount || shown);
+        const headerLabel = total <= cap
           ? `${label} — all ${shown}`
-          : `${label} — showing 15 of ${total.toLocaleString()}`;
+          : `${label} — showing ${shown} of ${total.toLocaleString()}`;
         if (header) header.querySelector('.header-label').textContent = headerLabel;
 
         const prefix = currentMinusWords.length > 0
