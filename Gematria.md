@@ -44,7 +44,8 @@ Each encoding is defined in `encodings.json` as a 26-element values array (index
 | `server.js` | Express web server |
 | `public/index.html` | Browser UI |
 | `encodings.json` | Encoding definitions (id, name, values array) |
-| `20k.txt` | Lexicon: 20,000 common English words |
+| `google-10000-english.txt` | Main lexicon: Google's 10,000 most common English words (frequency-sorted) |
+| `shortwords.txt` | Curated 1–3 letter words and well-known initialisms; edit freely to add/remove words |
 
 Earlier intermediate versions (`wordmatch.js`, `wordmatch2.js`) were stepping stones and are superseded by `wordfind.js`.
 
@@ -52,13 +53,21 @@ Earlier intermediate versions (`wordmatch.js`, `wordmatch2.js`) were stepping st
 
 ## Lexicon
 
-The tools use the **Google 10,000 English** word list (the 20k variant), downloaded from:
+The lexicon is built from two sources:
+
+**`google-10000-english.txt`** — the Google 10,000 most common English words (frequency-sorted), from:
 
 > https://github.com/first20hours/google-10000-english
 
-It contains 20,000 common English words, all lowercase, no proper nouns. This is stored locally as `20k.txt`.
+Only the top 7,500 entries are used (the tail contains obscure foreign words and acronyms). Words with fewer than 4 letters are excluded from this file entirely. Words that have no vowels (e.g. `http`, `hdtv`) or no consonants (e.g. `ieee`) are also filtered out.
 
-The earlier `wordmatch.js` used the macOS system lexicon at `/usr/share/dict/words` (235,976 entries including proper nouns and obscure words). The Google list gives much more recognisable results.
+**`shortwords.txt`** — a hand-curated list of 1–3 letter words and well-known initialisms. Edit this file freely to add or remove words; no code change needed. It currently includes:
+- 1-letter: `a`, `i`
+- 2-letter common words: `me`, `to`, `is`, `be`, `of`, `we`, `he`, `do`, `go`, etc.
+- 3-letter common words: `the`, `and`, `for`, `are`, `you`, `can`, `she`, `who`, etc.
+- Initialisms: `usa`, `fbi`, `cia`, `nsa`, `nba`, `bbc`, `dna`, `gps`, `irs`, `phd`, etc.
+
+The combined lexicon is ~9,000 words. The smaller, higher-quality list produces much more recognisable example combinations and runs noticeably faster than the previous 20,000-word list.
 
 ---
 
@@ -91,7 +100,7 @@ total: 1124
 
 ### wordfind.js
 
-Scores words and searches the lexicon for single words or combinations of 2–6 words with the same total score. Words prefixed with `-` are **subtract words** — their scores are deducted from the total before searching.
+Scores words and searches the lexicon for single words or combinations of 2–8 words with the same total score. Words prefixed with `-` are **subtract words** — their scores are deducted from the total before searching.
 
 ```
 node wordfind.js <word> [...] [-word ...] [/encodingId]
@@ -147,9 +156,9 @@ Lexicon combinations with score 59:
 - Subtract words are prepended to every example line so you can read the full phrase
 
 **Output behaviour:**
-- For each word count (1–6 words), shows the number of matching combinations
-- Shows up to 8 example combinations per word count
-- If the total number of combinations for a word count is 8 or fewer, all combinations are listed without repeating
+- For each word count (1–8 words), shows the number of matching combinations
+- Shows up to 30 examples for 1-word and 2-word results; up to 8 for 3-word and 4-word results; no examples for 5–8 words
+- If the total number of combinations is at or below the example limit, all combinations are listed without repeating
 - Combinations are **unordered** (so "hello world" and "world hello" count as one) and use **distinct words** (no word repeated)
 
 **Limits:**
@@ -176,9 +185,9 @@ Counts are stored as JavaScript `BigInt` values since they easily exceed JavaScr
 
 This approach samples uniformly at random without ever enumerating all combinations, and replaces an earlier approach that stored all score partitions in memory (which caused out-of-memory crashes for k=5 and k=6 on Render's 512MB free tier).
 
-If the total count is small enough to enumerate exhaustively (≤ 8 for the CLI, ≤ 15 for the web UI), all combinations are listed rather than sampling.
+If the total count is small enough to enumerate exhaustively (at or below the example limit), all combinations are listed rather than sampling.
 
-Examples are only shown for k=1 to k=4. The 5- and 6-word counts are still computed and displayed, but examples are not generated — they tended to consist mostly of 2–3 letter abbreviations and were not useful.
+Examples are only shown for k=1 to k=4. Counts for 5–8 words are computed and displayed but examples are not generated — short-word results at high k tend to be uninteresting.
 
 ---
 
@@ -209,9 +218,9 @@ Render configuration:
 
 The server's memory footprint is carefully bounded to stay within Render's 512MB free tier:
 
-**At startup:** one score map per encoding is prebuilt and held in memory (~10MB total for 4 encodings × 20k words).
+**At startup:** one score map per encoding is prebuilt and held in memory (~10MB total for 4 encodings × ~9k words).
 
-**Cache:** combination counts (6 BigInt strings) are cached per `encodingId:netTotal` key. The counts are tiny and accumulate without eviction — this is fine because they're just strings.
+**Cache:** combination counts (8 BigInt strings) are cached per `encodingId:netTotal` key. The counts are tiny and accumulate without eviction — this is fine because they're just strings.
 
 **Suffix DPs are NOT cached.** The suffix DP tables required for example generation are O(numGroups × MAX_K × netTotal) in size. For a Hebrew encoding search at T=1157 this is roughly 4 million BigInt entries (~400MB) — caching even a handful would exhaust available RAM. Instead, suffix DPs are rebuilt fresh for each `/api/examples` call and garbage collected immediately afterwards.
 
@@ -268,7 +277,7 @@ Scores words without running the lexicon search. Called on every keystroke for l
 ```
 
 #### `POST /api/search`
-Runs the full DP and returns combination counts for all word lengths 1–6. Returns HTTP 400 if netTotal exceeds `MAX_TOTAL`.
+Runs the full DP and returns combination counts for all word lengths 1–8. Returns HTTP 400 if netTotal exceeds `MAX_TOTAL`.
 
 **Request:**
 ```json
@@ -282,14 +291,14 @@ Runs the full DP and returns combination counts for all word lengths 1–6. Retu
   "plusTotal": 124,
   "minusTotal": 15,
   "netTotal": 109,
-  "counts": { "1": "87", "2": "1189432", "3": "...", "4": "...", "5": "...", "6": "..." },
+  "counts": { "1": "87", "2": "1189432", "3": "...", "4": "...", "5": "...", "6": "...", "7": "...", "8": "..." },
   "encodingName": "English (simple)"
 }
 ```
 Counts are returned as strings to preserve BigInt precision.
 
 #### `POST /api/examples`
-Returns up to 15 example combinations for a specific word count. Called once per section when expanded, and again on More… clicks. Returns an empty array for k > 4. Returns `{ "examples": [], "scoreTooLarge": true }` if netTotal exceeds `EXAMPLES_TOTAL_LIMIT`.
+Returns up to 30 examples for k=1 and k=2, up to 15 for k=3 and k=4. Also returns the `exampleCount` used so the UI can display "showing N of total" accurately. Called once per section when expanded, and again on More… clicks. Returns an empty array for k > 4. Returns `{ "examples": [], "scoreTooLarge": true }` if netTotal exceeds `EXAMPLES_TOTAL_LIMIT`.
 
 **Request:**
 ```json
@@ -306,12 +315,13 @@ Returns up to 15 example combinations for a specific word count. Called once per
 - **Live scoring** — totals update as you type, before hitting Search
 - **Search disabled** when netTotal exceeds the server's `MAX_TOTAL` limit (shown in red)
 - **Subtract words** — enter in the second field; their scores are deducted and they appear in pink before every example
-- **Collapsible sections** — one section per word count (1–6), click the header to expand/collapse
+- **Collapsible sections** — one section per word count (1–8), click the header to expand/collapse
 - **k=1 auto-expanded** on each search
-- **Examples for k=1–4 only** — 5- and 6-word counts are shown but no examples are generated
+- **Examples for k=1–4 only** — 5–8-word counts are shown but no examples are generated
+- **Two-column layout** for 1-word and 2-word example lists (30 examples each)
 - **"examples not available (score too large)"** shown for k=1–4 when netTotal > EXAMPLES_TOTAL_LIMIT
 - **More… button** — fetches a fresh set of random examples for that word count
-- **Mobile friendly** — layout adapts to narrow screens
+- **Mobile friendly** — layout adapts to narrow screens; Encoding dropdown and Search button wrap to separate lines on very narrow viewports
 - **Footer** — attribution and links to website, LinkedIn, and GitHub
 
 ### Dependencies
