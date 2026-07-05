@@ -319,10 +319,10 @@ Returns up to 30 examples for k=1 and k=2, up to 15 for k=3 and k=4. Also return
 - **Subtract words** — enter in the second field; their scores are deducted and they appear in pink before every example
 - **Collapsible sections** — one section per word count (1–8), click the header to expand/collapse
 - **k=1 auto-expanded** on each search
-- **Examples for k=1–4 only** — 5–8-word counts are shown but no examples are generated
+- **Examples for k=1–4 only** — 5–8-word counts are shown in the combinations table but the Examples section ends at 4 words
 - **Two-column layout** for 1-word and 2-word example lists (30 examples each)
 - **"examples not available (score too large)"** shown for k=1–4 when netTotal > EXAMPLES_TOTAL_LIMIT
-- **More… button** — fetches a fresh set of random examples for that word count
+- **More… button** — fetches a fresh set of random examples; hidden when all combinations are already shown (i.e. the header says "all N")
 - **Mobile friendly** — layout adapts to narrow screens; Encoding dropdown and Search button wrap to separate lines on very narrow viewports
 - **Footer** — attribution and links to website, LinkedIn, and GitHub
 
