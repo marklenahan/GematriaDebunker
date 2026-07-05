@@ -478,13 +478,7 @@
       if (count === 0n) continue;
       const label = k === 1 ? '1 word' : `${k} words`;
 
-      if (k > 4) {
-        const row = document.createElement('div');
-        row.className = 'example-group';
-        row.innerHTML = `<div class="example-header" style="cursor:default"><span class="header-label">${label} — no examples shown</span></div>`;
-        examplesSection.appendChild(row);
-        continue;
-      }
+      if (k > 4) continue;
       const group = document.createElement('div');
       group.className = 'example-group';
       group.dataset.k = k;
