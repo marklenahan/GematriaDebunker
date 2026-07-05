@@ -540,9 +540,11 @@
       if (data.scoreTooLarge) {
         if (header) header.querySelector('.header-label').textContent = `${label} — examples not available (score too large)`;
         list.innerHTML = '';
+        moreBtn.style.display = 'none';
       } else {
         const cap = BigInt(data.exampleCount || shown);
-        const headerLabel = total <= cap
+        const showingAll = total <= cap;
+        const headerLabel = showingAll
           ? `${label} — all ${shown}`
           : `${label} — showing ${shown} of ${total.toLocaleString()}`;
         if (header) header.querySelector('.header-label').textContent = headerLabel;
@@ -554,12 +556,15 @@
         list.innerHTML = data.examples
           .map(ex => `<div>${prefix}${ex.join(' ')}</div>`)
           .join('');
+
+        moreBtn.style.display = showingAll ? 'none' : '';
+        moreBtn.disabled = false;
       }
 
     } catch (e) {
       list.innerHTML = '<span class="loading">Failed to load examples.</span>';
     } finally {
-      moreBtn.disabled = false;
+      if (moreBtn.style.display !== 'none') moreBtn.disabled = false;
     }
   }
 
